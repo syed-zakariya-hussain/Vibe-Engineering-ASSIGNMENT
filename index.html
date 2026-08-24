@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>NEON OVERDRIVE 2099 - 3D Cyberpunk Racer & Combat</title>
+  <meta name="description" content="A high-speed 3D Cyberpunk Hovercraft Runner and Combat game with procedural synthwave music, stunning visuals, and full upgrade garage.">
+  <meta name="theme-color" content="#0a0a14">
+  
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:ital,wght@0,400;0,600;0,700;1,700&family=Orbitron:wght@400;600;800;900&family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet">
+  
+  <link rel="stylesheet" href="./src/styles/main.css">
+</head>
+<body>
+  <!-- 3D Canvas Container -->
+  <div id="game-container">
+    <canvas id="webgl-canvas"></canvas>
+  </div>
+
+  <!-- Screen Shake / Visual FX Overlays -->
+  <div id="fx-speed-lines" class="fx-overlay"></div>
+  <div id="fx-damage" class="fx-overlay"></div>
+  <div id="fx-boost" class="fx-overlay"></div>
+  <div id="fx-slowmo" class="fx-overlay"></div>
+
+  <!-- In-Game HUD -->
+  <div id="hud" class="hud-container hidden">
+    <!-- Top Bar -->
+    <header class="hud-header">
+      <div class="hud-stat score-box">
+        <span class="hud-label">SCORE</span>
+        <span id="hud-score" class="hud-value">000000</span>
+      </div>
+
+      <div class="hud-stat multiplier-box">
+        <span class="hud-label">MULTIPLIER</span>
+        <span id="hud-multiplier" class="hud-value glowing-gold">x1.0</span>
+      </div>
+
+      <div class="hud-stat distance-box">
+        <span class="hud-label">DISTANCE</span>
+        <span id="hud-distance" class="hud-value">0 m</span>
+      </div>
+
+      <div class="hud-stat credits-box">
+        <span class="hud-label">CREDITS</span>
+        <span id="hud-credits" class="hud-value glowing-cyan">⚡ 0</span>
+      </div>
+
+      <div class="hud-actions">
+        <button id="btn-cam-switch" class="hud-btn" title="Switch Camera [C]">
+          <span class="btn-icon">📷</span> <span id="cam-mode-text">CHASE</span>
+        </button>
+        <button id="btn-pause" class="hud-btn" title="Pause Game [ESC / P]">
+          <span class="btn-icon">⏸</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- Bottom Left: Speedometer & Hull / Shield -->
+    <div class="hud-bottom-left">
+      <div class="speedometer-container">
+        <div class="speed-gauge-wrap">
+          <svg class="speed-gauge-svg" viewBox="0 0 160 160">
+            <circle class="gauge-bg" cx="80" cy="80" r="65"></circle>
+            <circle id="speed-gauge-fill" class="gauge-fill" cx="80" cy="80" r="65"></circle>
+          </svg>
+          <div class="speed-readout">
+            <span id="hud-speed" class="speed-num">0</span>
+            <span class="speed-unit">KM/H</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="status-bars">
+        <div class="bar-group">
+          <div class="bar-header">
+            <span>SHIELD INTEGRITY</span>
+            <span id="shield-percent">100%</span>
+          </div>
+          <div class="bar-track">
+            <div id="shield-bar" class="bar-fill shield-fill" style="width: 100%;"></div>
+          </div>
+        </div>
+
+        <div class="bar-group">
+          <div class="bar-header">
+            <span>BOOST ENERGY</span>
+            <span id="boost-percent">100%</span>
+          </div>
+          <div class="bar-track">
+            <div id="boost-bar" class="bar-fill boost-fill" style="width: 100%;"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Bottom Right: Weapon & Active Power-Ups -->
+    <div class="hud-bottom-right">
+      <div class="powerup-indicators" id="powerup-slots">
+        <!-- Dynamic power-up badges -->
+      </div>
+      <div class="weapon-status">
+        <div class="weapon-name">PLASMA CANNON [SPACE]</div>
+        <div class="weapon-ammo-wrap">
+          <div id="weapon-heat-bar" class="heat-bar-fill" style="width: 0%;"></div>
+        </div>
+        <div class="weapon-hint">RAPID FIRE ACTIVE</div>
+      </div>
+    </div>
+
+    <!-- Center Alerts / Notifications -->
+    <div id="hud-alert-container" class="hud-alert-box"></div>
+
+    <!-- Audio Visualizer Canvas -->
+    <div class="audio-viz-wrap">
+      <canvas id="audio-visualizer" width="180" height="24"></canvas>
+    </div>
+  </div>
+
+  <!-- Mobile / Touch Controls Overlay -->
+  <div id="touch-controls" class="touch-controls hidden">
+    <div class="touch-left-zone">
+      <button id="btn-touch-left" class="touch-btn touch-steer">◀</button>
+      <button id="btn-touch-right" class="touch-btn touch-steer">▶</button>
+    </div>
+    <div class="touch-right-zone">
+      <button id="btn-touch-fire" class="touch-btn touch-action touch-fire">🔥 FIRE</button>
+      <button id="btn-touch-boost" class="touch-btn touch-action touch-boost">⚡ BOOST</button>
+      <button id="btn-touch-brake" class="touch-btn touch-action touch-brake">🛑 BRAKE</button>
+    </div>
+  </div>
+
+  <!-- MAIN MENU SCREEN -->
+  <div id="screen-start" class="menu-screen">
+    <div class="menu-glass-panel title-panel">
+      <div class="game-logo-wrap">
+        <div class="logo-sub">CYBERPUNK HIGH-VELOCITY RACER</div>
+        <h1 class="game-title glitch-text" data-text="NEON OVERDRIVE">NEON OVERDRIVE</h1>
+        <div class="logo-tag">2099 EDITION // ARCADE COMBAT</div>
+      </div>
+
+      <div class="menu-stats-row">
+        <div class="stat-pill">BEST DISTANCE: <span id="menu-high-dist" class="highlight">0 m</span></div>
+        <div class="stat-pill">HIGH SCORE: <span id="menu-high-score" class="highlight">0</span></div>
+        <div class="stat-pill">ENERGY CELLS: <span id="menu-credits" class="highlight">⚡ 0</span></div>
+      </div>
+
+      <!-- Mode Selector -->
+      <div class="mode-selector">
+        <label class="mode-btn active" data-mode="endless">
+          <input type="radio" name="game-mode" value="endless" checked>
+          <div class="mode-content">
+            <span class="mode-name">HYPER-SURVIVAL</span>
+            <span class="mode-desc">Infinite procedural highway, scaling speed, dynamic weather</span>
+          </div>
+        </label>
+        <label class="mode-btn" data-mode="timeattack">
+          <input type="radio" name="game-mode" value="timeattack">
+          <div class="mode-content">
+            <span class="mode-name">SECTOR RUSH</span>
+            <span class="mode-desc">Reach checkpoints before hyper-clock drains</span>
+          </div>
+        </label>
+        <label class="mode-btn" data-mode="combat">
+          <input type="radio" name="game-mode" value="combat">
+          <div class="mode-content">
+            <span class="mode-name">COMBAT STRIKE</span>
+            <span class="mode-desc">Eliminate rogue surveillance drones for high bounty</span>
+          </div>
+        </label>
+      </div>
+
+      <div class="menu-button-group">
+        <button id="btn-launch" class="cyber-button primary-button pulse-anim">
+          <span class="btn-glitch-effect"></span>
+          <span class="btn-text">INITIALIZE RUN</span>
+        </button>
+
+        <div class="secondary-btn-row">
+          <button id="btn-open-garage" class="cyber-button secondary-button">
+            <span>🚀 HANGAR / UPGRADES</span>
+          </button>
+          <button id="btn-open-settings" class="cyber-button secondary-button">
+            <span>⚙ SETTINGS</span>
+          </button>
+          <button id="btn-open-help" class="cyber-button secondary-button">
+            <span>❓ HOW TO PLAY</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- GARAGE / HANGAR MODAL -->
+  <div id="screen-garage" class="menu-screen hidden">
+    <div class="menu-glass-panel garage-panel">
+      <div class="panel-header">
+        <h2 class="panel-title">CYBER HANGAR // SHIP MODS</h2>
+        <div class="garage-bank">CREDITS: <span id="garage-credits" class="highlight-cyan">⚡ 0</span></div>
+        <button id="btn-close-garage" class="close-btn">✕</button>
+      </div>
+
+      <div class="garage-body">
+        <!-- Ship Carousel Selection -->
+        <div class="ship-select-carousel">
+          <button id="btn-prev-ship" class="carousel-arrow">◀</button>
+          <div class="ship-card">
+            <h3 id="ship-name" class="ship-name-text">APEX PHANTOM</h3>
+            <div id="ship-class" class="ship-class-tag">INTERCEPTOR CLASS</div>
+            <div class="ship-specs">
+              <div class="spec-row">
+                <span>TOP SPEED</span>
+                <div class="spec-bar-wrap"><div id="spec-speed" class="spec-bar-fill"></div></div>
+              </div>
+              <div class="spec-row">
+                <span>ACCELERATION</span>
+                <div class="spec-bar-wrap"><div id="spec-accel" class="spec-bar-fill"></div></div>
+              </div>
+              <div class="spec-row">
+                <span>HANDLING</span>
+                <div class="spec-bar-wrap"><div id="spec-handling" class="spec-bar-fill"></div></div>
+              </div>
+              <div class="spec-row">
+                <span>SHIELD ARMOR</span>
+                <div class="spec-bar-wrap"><div id="spec-shield" class="spec-bar-fill"></div></div>
+              </div>
+            </div>
+            <div id="ship-unlock-row" class="ship-unlock-row">
+              <button id="btn-equip-ship" class="cyber-button primary-button small-btn">EQUIPPED</button>
+            </div>
+          </div>
+          <button id="btn-next-ship" class="carousel-arrow">▶</button>
+        </div>
+
+        <!-- Customization Tabs -->
+        <div class="garage-tabs">
+          <button class="tab-btn active" data-tab="paint">NEON COLOR</button>
+          <button class="tab-btn" data-tab="upgrades">CORE UPGRADES</button>
+          <button class="tab-btn" data-tab="trails">THRUSTER TRAIL</button>
+        </div>
+
+        <div class="garage-tab-content">
+          <!-- Paint Tab -->
+          <div id="tab-paint" class="tab-pane active">
+            <div class="color-palette-grid" id="paint-options">
+              <!-- Dynamically populated color swatches -->
+            </div>
+          </div>
+
+          <!-- Upgrades Tab -->
+          <div id="tab-upgrades" class="tab-pane">
+            <div class="upgrades-grid" id="upgrades-container">
+              <!-- Dynamically populated upgrades -->
+            </div>
+          </div>
+
+          <!-- Trails Tab -->
+          <div id="tab-trails" class="tab-pane">
+            <div class="trail-options-grid" id="trail-options">
+              <!-- Dynamically populated trail styles -->
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- HOW TO PLAY MODAL -->
+  <div id="screen-help" class="menu-screen hidden">
+    <div class="menu-glass-panel help-panel">
+      <div class="panel-header">
+        <h2 class="panel-title">MISSION BRIEFING // CONTROLS</h2>
+        <button id="btn-close-help" class="close-btn">✕</button>
+      </div>
+      <div class="help-content">
+        <div class="controls-grid">
+          <div class="ctrl-card">
+            <div class="ctrl-key">A / D or ◀ / ▶</div>
+            <div class="ctrl-desc">Steer Hovercraft Left / Right</div>
+          </div>
+          <div class="ctrl-card">
+            <div class="ctrl-key">W or ▲</div>
+            <div class="ctrl-desc">Hyper Boost (Uses Energy)</div>
+          </div>
+          <div class="ctrl-card">
+            <div class="ctrl-key">S or ▼</div>
+            <div class="ctrl-desc">Air Brake / Precision Drift</div>
+          </div>
+          <div class="ctrl-card">
+            <div class="ctrl-key">SPACE / Click</div>
+            <div class="ctrl-desc">Fire Dual Plasma Cannons</div>
+          </div>
+          <div class="ctrl-card">
+            <div class="ctrl-key">C</div>
+            <div class="ctrl-desc">Toggle Camera Mode (Chase / Cockpit / Top)</div>
+          </div>
+          <div class="ctrl-card">
+            <div class="ctrl-key">ESC / P</div>
+            <div class="ctrl-desc">Pause Simulation</div>
+          </div>
+        </div>
+
+        <h3 class="brief-title">FIELD COLLECTIBLES & POWER-UPS</h3>
+        <div class="powerup-guide-grid">
+          <div class="guide-item">
+            <span class="guide-icon cyan">⚡</span>
+            <div><strong>Energy Cells:</strong> Currency used to unlock ships & permanent upgrades.</div>
+          </div>
+          <div class="guide-item">
+            <span class="guide-icon purple">🛡️</span>
+            <div><strong>Phase Shield:</strong> Absorbs crash impact and deflects laser barriers.</div>
+          </div>
+          <div class="guide-item">
+            <span class="guide-icon gold">🚀</span>
+            <div><strong>Quantum Overdrive:</strong> Max speed invulnerability warp tunnel.</div>
+          </div>
+          <div class="guide-item">
+            <span class="guide-icon green">⏱️</span>
+            <div><strong>Chrono Slow-Mo:</strong> Dilates time for precision maneuvering.</div>
+          </div>
+          <div class="guide-item">
+            <span class="guide-icon red">💣</span>
+            <div><strong>EMP Blast:</strong> Destroys all obstacles and drones in your field of view.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SETTINGS MODAL -->
+  <div id="screen-settings" class="menu-screen hidden">
+    <div class="menu-glass-panel settings-panel">
+      <div class="panel-header">
+        <h2 class="panel-title">SYSTEM CONFIGURATION</h2>
+        <button id="btn-close-settings" class="close-btn">✕</button>
+      </div>
+      <div class="settings-body">
+        <div class="setting-item">
+          <label>SYNTHWAVE MUSIC VOLUME</label>
+          <input type="range" id="vol-music" min="0" max="100" value="70">
+        </div>
+        <div class="setting-item">
+          <label>SFX SOUND VOLUME</label>
+          <input type="range" id="vol-sfx" min="0" max="100" value="80">
+        </div>
+        <div class="setting-item">
+          <label>GRAPHICS PRESET</label>
+          <div class="graphics-options">
+            <button class="preset-btn" data-preset="low">PERFORMANCE</button>
+            <button class="preset-btn" data-preset="med">BALANCED</button>
+            <button class="preset-btn active" data-preset="high">ULTRA BLOOM</button>
+          </div>
+        </div>
+        <div class="setting-item">
+          <label>CAMERA SENSITIVITY</label>
+          <input type="range" id="cam-sens" min="50" max="150" value="100">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PAUSE SCREEN -->
+  <div id="screen-pause" class="menu-screen hidden">
+    <div class="menu-glass-panel pause-panel">
+      <h2 class="panel-title">SIMULATION SUSPENDED</h2>
+      <div class="pause-actions">
+        <button id="btn-resume" class="cyber-button primary-button">RESUME FLIGHT</button>
+        <button id="btn-restart-pause" class="cyber-button secondary-button">RESTART RUN</button>
+        <button id="btn-quit-pause" class="cyber-button secondary-button">ABORT TO MENU</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- GAME OVER SCREEN -->
+  <div id="screen-gameover" class="menu-screen hidden">
+    <div class="menu-glass-panel gameover-panel">
+      <div class="gameover-header">
+        <div class="gameover-sub">HOVERCRAFT DESTROYED</div>
+        <h2 class="gameover-title">CRITICAL FAILURE</h2>
+      </div>
+
+      <div class="gameover-stats">
+        <div class="go-stat-card highlight-card">
+          <span class="go-label">FINAL SCORE</span>
+          <span id="go-score" class="go-val">000000</span>
+          <span id="go-new-high" class="new-record-badge hidden">🏆 NEW RECORD!</span>
+        </div>
+
+        <div class="go-stats-grid">
+          <div class="go-stat-card">
+            <span class="go-label">DISTANCE COVERED</span>
+            <span id="go-distance" class="go-val">0 m</span>
+          </div>
+          <div class="go-stat-card">
+            <span class="go-label">DRONES DESTROYED</span>
+            <span id="go-drones" class="go-val">0</span>
+          </div>
+          <div class="go-stat-card">
+            <span class="go-label">MAX SPEED REACHED</span>
+            <span id="go-maxspeed" class="go-val">0 KM/H</span>
+          </div>
+          <div class="go-stat-card">
+            <span class="go-label">ENERGY CELLS SALVAGED</span>
+            <span id="go-credits" class="go-val highlight-cyan">⚡ 0</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="gameover-actions">
+        <button id="btn-retry" class="cyber-button primary-button pulse-anim">
+          <span>REBOOT & RETRY</span>
+        </button>
+        <button id="btn-go-hangar" class="cyber-button secondary-button">
+          <span>HANGAR / UPGRADE</span>
+        </button>
+        <button id="btn-go-menu" class="cyber-button secondary-button">
+          <span>MAIN TERMINAL</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main JavaScript Module -->
+  <script type="module" src="./src/main.js"></script>
+</body>
+</html>
